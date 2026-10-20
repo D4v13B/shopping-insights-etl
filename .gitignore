@@ -1,0 +1,26 @@
+# Entorno virtual
+.venv/
+
+# Python
+__pycache__/
+*.pyc
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+coverage/
+htmlcov/
+
+# Entorno
+.env
+.env.*
+!.env.example
+
+# Datos descargados por el ETL (el respaldo data/shopping_trends.csv sí se versiona)
+data/raw/
+
+# SO / editores
+.DS_Store
+.idea/
+.vscode/*
+!.vscode/extensions.json
