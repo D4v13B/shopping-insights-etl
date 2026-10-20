@@ -1,0 +1,85 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  BUN_VERSION: 1.3.11
+  UV_VERSION: 0.8.13
+  # El esquema lo define el repo de la API (Drizzle). Si es privado, crear el secreto
+  # CROSS_REPO_TOKEN con permiso de lectura sobre ese repo.
+  API_REPO: ${{ github.repository_owner }}/shopping-insights-api
+
+jobs:
+  lint:
+    name: Ruff y mypy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with: { version: "${{ env.UV_VERSION }}", enable-cache: true }
+      - run: uv sync --frozen
+      - run: uv run ruff format --check .
+      - run: uv run ruff check .
+      - run: uv run mypy
+
+  test:
+    name: pytest (unitarios + integración)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:18.1-alpine
+        env:
+          POSTGRES_DB: shopping
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres -d shopping"
+          --health-interval 3s --health-timeout 3s --health-retries 20
+    env:
+      PGHOST: localhost
+      PGPASSWORD: postgres
+      POSTGRES_USER: postgres
+      POSTGRES_DB: shopping
+      ETL_DB_PASSWORD: etl-ci-password
+      API_DB_PASSWORD: api-ci-password
+      DATABASE_URL_MIGRATE: postgresql://postgres:postgres@localhost:5432/shopping
+      TEST_DATABASE_URL_ETL: postgresql://etl_writer:etl-ci-password@localhost:5432/shopping
+      TEST_DATABASE_URL_ADMIN: postgresql://postgres:postgres@localhost:5432/shopping
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: ${{ env.API_REPO }}
+          token: ${{ secrets.CROSS_REPO_TOKEN || github.token }}
+          path: .api
+      - uses: oven-sh/setup-bun@v2
+        with: { bun-version: "${{ env.BUN_VERSION }}" }
+      - uses: astral-sh/setup-uv@v6
+        with: { version: "${{ env.UV_VERSION }}", enable-cache: true }
+      - name: Roles y migraciones (desde el repo de la API)
+        working-directory: .api
+        run: |
+          bun install --frozen-lockfile
+          bash infra/postgres/init-roles.sh
+          bun run db:migrate
+      - run: uv sync --frozen
+      - name: pytest con cobertura
+        run: |
+          uv run pytest --cov=shopping_etl --cov-report=term-missing --cov-fail-under=85
+          uv run pytest -q tests/test_transform.py --cov=shopping_etl.transform --cov-fail-under=90
+
+  docker:
+    name: Build de la imagen
+    runs-on: ubuntu-latest
+    needs: [lint]
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build -t shopping-insights-etl .
