@@ -9,9 +9,6 @@ categorías, temporadas, clientes y canales de pago.
 
 ## Opciones
 1. **Customer Shopping Trends** (Kaggle): ropa, calzado y accesorios, con temporada, cliente y pago.
-2. Online Retail II (UCI): transacciones reales con fechas, pero de regalos y sin atributos de moda.
-3. H&M Personalized Fashion Recommendations (Kaggle): muy relevante, pero de ~30 GB y orientado a
-   recomendaciones.
 
 ## Decisión
 Customer Shopping Trends. Su dominio coincide con el negocio, el volumen permite una demo local en

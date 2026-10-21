@@ -16,6 +16,17 @@ El proyecto ocupa tres repositorios:
 > El esquema de la base lo define la API con Drizzle ([ADR 0006](https://github.com/D4v13B/shopping-insights-api/blob/main/docs/adr/0006-drizzle-dueno-del-esquema.md)).
 > El ETL solo escribe datos, así que necesita una base ya migrada.
 
+## Despliegue
+
+| Modo | Dónde | `.env` |
+|---|---|---|
+| **Docker (recomendado)** | `docker compose up` en **`shopping-insights-api`** | Solo el de la API (incluye `KAGGLE_*` para el contenedor ETL) |
+| **ETL local** | Este repo, con Postgres ya migrado | `cp .env.example .env` aquí |
+
+Los tres repos deben estar como **carpetas hermanas** (`../shopping-insights-etl` desde la API).
+El dataset está en **`data/shopping_trends.csv`** (versionado); Kaggle es opcional vía
+`kagglehub` — ver [`.env.example`](.env.example) y [`data/README.md`](data/README.md).
+
 ## Cómo funciona
 
 ```mermaid
@@ -50,13 +61,14 @@ El ETL corre dentro del stack completo, que se levanta desde el repo de la API c
 clonados como carpetas hermanas:
 
 ```bash
+# Misma carpeta padre para los tres clones
 git clone https://github.com/D4v13B/shopping-insights-etl.git
 git clone https://github.com/D4v13B/shopping-insights-api.git
 git clone https://github.com/D4v13B/shopping-insights-web.git
 
 cd shopping-insights-api
 cp .env.example .env
-docker compose up --build
+docker compose up --build   # construye este repo (ETL) y ../shopping-insights-web
 ```
 
 Compose construye la imagen de este repo y la usa en dos servicios: `etl` (carga inicial al
